@@ -20,6 +20,27 @@ generate_database_config(){
   <name>javax.jdo.option.ConnectionPassword</name>
   <value>${DATABASE_PASSWORD}</value>
 </property>
+<!--
+  #    <property>
+  #        <name>javax.jdo.option.ConnectionDriverName</name>
+  #        <value>com.mysql.cj.jdbc.Driver</value>
+  #    </property>
+  #
+  #    <property>
+  #        <name>javax.jdo.option.ConnectionURL</name>
+  #        <value>jdbc:mysql://mariadb:3306/metastore_db</value>
+  #    </property>
+  #
+  #    <property>
+  #        <name>javax.jdo.option.ConnectionUserName</name>
+  #        <value>admin</value>
+  #    </property>
+  #
+  #    <property>
+  #        <name>javax.jdo.option.ConnectionPassword</name>
+  #        <value>admin</value>
+  #    </property>
+-->
 XML
 }
 
@@ -36,74 +57,85 @@ generate_metastore_site_config(){
   database_config=$(generate_database_config)
   cat << XML > "$1"
 <configuration>
-  <property>
-    <name>metastore.task.threads.always</name>
-    <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
-  </property>
-  <property>
-    <name>metastore.expression.proxy</name>
-    <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
-  </property>
-  $database_config
-  <property>
-    <name>metastore.warehouse.dir</name>
-    <value>s3a://${S3_BUCKET}/${S3_PREFIX}/</value>
-  </property>
-  <property>
-    <name>metastore.thrift.port</name>
-    <value>9083</value>
-  </property>
+ <property>
+        <name>metastore.thrift.uris</name>
+        <value>thrift://hive-metastore:9083</value>
+        <description>Thrift URI for the remote metastore. Used by metastore client to connect to remote metastore.</description>
+    </property>
+    <property>
+        <name>metastore.task.threads.always</name>
+        <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask,org.apache.hadoop.hive.metastore.MaterializationsCacheCleanerTask</value>
+    </property>
+    <property>
+        <name>metastore.expression.proxy</name>
+        <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>minio</value>
+    </property>
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>minio123</value>
+    </property>
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+    </property>
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+    </property>
+
 </configuration>
 XML
 }
 
-generate_s3_custom_endpoint(){
-  if [ -z "$S3_ENDPOINT_URL" ]; then
-    echo ""
-    return 0
-  fi
-
-  cat << XML
-<property>
-  <name>fs.s3a.endpoint</name>
-  <value>${S3_ENDPOINT_URL}</value>
-</property>
-<property>
-  <name>fs.s3a.access.key</name>
-  <value>${AWS_ACCESS_KEY_ID:-}</value>
-</property>
-<property>
-  <name>fs.s3a.secret.key</name>
-  <value>${AWS_SECRET_ACCESS_KEY:-}</value>
-</property>
-<property>
-  <name>fs.s3a.connection.ssl.enabled</name>
-  <value>false</value>
-</property>
-<property>
-  <name>fs.s3a.path.style.access</name>
-  <value>true</value>
-</property>
-XML
-}
 
 generate_core_site_config(){
-  custom_endpoint_configs=$(generate_s3_custom_endpoint)
+#  custom_endpoint_configs=$(generate_s3_custom_endpoint)
+custom_endpoint_configs=""
   cat << XML > "$1"
 <configuration>
-  <property>
-      <name>fs.defaultFS</name>
-      <value>s3a://${S3_BUCKET}</value>
-  </property>
-  <property>
-      <name>fs.s3a.impl</name>
-      <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
-  </property>
-  <property>
-      <name>fs.s3a.fast.upload</name>
-      <value>true</value>
-  </property>
-  $custom_endpoint_configs
+
+    <property>
+        <name>fs.defaultFS</name>
+        <value>s3a://minio:9000</value>
+    </property>
+
+
+    <!-- Minio properties -->
+    <property>
+        <name>fs.s3a.connection.ssl.enabled</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>minio</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>minio123</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
 </configuration>
 XML
 }
