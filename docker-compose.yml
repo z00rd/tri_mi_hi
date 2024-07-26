@@ -1,60 +1,70 @@
 services:
-  postgres:
-    image: 'postgres:14-alpine'
-    hostname: postgres
-    container_name: postgres
+  trino-coordinator:
+    image: 'trinodb/trino:latest'
+    container_name: trino_single
+    hostname: trino-coordinator
     ports:
-      - '5432:5432'
-    environment:
-      POSTGRES_PASSWORD: admin
-      POSTGRES_USER: admin
-      POSTGRES_DB: metastore_db
-    healthcheck:
-      test: ["CMD", "psql", "-U", "${POSTGRES_USER}", "${POSTGRES_DB}"]
+      - '8080:8080'
+    volumes:
+      - ./etc:/etc/trino
+      - ./conf:/etc/trino/conf
     networks:
-      - minio-network
+      - trino-network
+
+  postgres:
+    image: 'postgres:15-alpine'
+    container_name: postgres
+    hostname: postgres
+    expose:
+      - '5432'
+    ports:
+      - '5431:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}"
+    networks:
+      - trino-network
+    healthcheck:
+      test: "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
 
   hive-metastore:
-    build: .
+    image: 'my-hive-metastore:latest'
     container_name: metastore
+    hostname: hive-metastore
+    ports:
+      - '9083:9083' # Metastore Thrift
+    volumes:
+      - ./conf/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+    environment:
+      METASTORE_DB_HOSTNAME: postgres
+      METASTORE_TYPE: postgres
     depends_on:
       postgres:
         condition: service_healthy
-
-    environment:
-      - DATABASE_HOST=postgres
-      - DATABASE_DB=${POSTGRES_DB}
-      - DATABASE_USER=${POSTGRES_USER}
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
-      - S3_BUCKET
-      - S3_PREFIX
-    ports:
-      - '9083:9083'
     networks:
-      - minio-network
+      - trino-network
 
   minio:
     image: 'minio/minio:latest'
-    hostname: minio
     container_name: minio
+    hostname: minio
     ports:
       - '9000:9000'
       - '9001:9001'
     volumes:
       - minio-data:/data
     environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     command: server --console-address ":9001" /data
     networks:
-      - minio-network
+      - trino-network
 
 volumes:
   minio-data:
     driver: local
-  maria_volume:  
 
 networks:
-  minio-network:
+  trino-network:
     driver: bridge
-    name: minio-network
