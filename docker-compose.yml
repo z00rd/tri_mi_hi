@@ -53,17 +53,14 @@ services:
       - '9000:9000'
       - '9001:9001'
     volumes:
-      - minio-data:/data
+      - ./drives/minio1:/data1
+      - ./drives/minio2:/data2
     environment:
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-    command: server --console-address ":9001" /data
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server --console-address ":9001" /data1 /data2
     networks:
       - trino-network
-
-volumes:
-  minio-data:
-    driver: local
 
 networks:
   trino-network:
