@@ -1,4 +1,4 @@
-FROM openjdk:8-jre-slim-buster
+FROM openjdk:16-slim
 
 WORKDIR /opt
 
