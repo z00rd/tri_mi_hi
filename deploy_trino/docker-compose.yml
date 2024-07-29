@@ -1,0 +1,13 @@
+services:
+  trino-coordinator:
+    image: 'trinodb/trino:latest'
+    container_name: trino_single
+    hostname: trino-coordinator
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./etc:/etc/trino
+      - ../common_conf:/etc/trino/conf
+    networks:
+      - trino-network
+
